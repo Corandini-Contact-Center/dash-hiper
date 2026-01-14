@@ -15,8 +15,10 @@ st.set_page_config(page_title="Dashboard Hiper", layout="wide")
 # USUÁRIOS AUTORIZADOS
 # =========================
 USUARIOS = {
-    "admin": "1234",
-    "user1": "senha1"
+    "admin": "Senha@741852",
+    "ana.hiper": "Hiper@26",
+    "suzan.hiper": "Hiper#26"
+
 }
 
 # =========================

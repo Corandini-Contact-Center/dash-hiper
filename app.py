@@ -18,25 +18,20 @@ SHEETS_WORKSHEET = "Página1"
 
 def registrar_log(usuario, acao="LOGIN"):
     try:
-        scope = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]
-        creds = Credentials.from_service_account_file(
-            SHEETS_CRED_PATH,
+        scope = ["https://www.googleapis.com/auth/spreadsheets"]
+
+        creds = Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
             scopes=scope
         )
 
         gc = gspread.authorize(creds)
-        sh = gc.open(SHEETS_NAME)
-        ws = sh.worksheet(SHEETS_WORKSHEET)
+        sh = gc.open("Log acessos DashHiper")
+        ws = sh.worksheet("Página1")
 
         data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # IP (pode não existir dependendo do ambiente)
-        ip = st.context.headers.get("X-Forwarded-For", "local")
-
-        # Navegador
+        ip = st.context.headers.get("X-Forwarded-For", "cloud")
         user_agent = st.context.headers.get("User-Agent", "desconhecido")
 
         ws.append_row([
@@ -49,6 +44,7 @@ def registrar_log(usuario, acao="LOGIN"):
 
     except Exception as e:
         st.error(f"Erro ao registrar log de acesso: {e}")
+
 
 
 # =========================
@@ -149,7 +145,7 @@ if st.session_state["logado"]:
     # =========================
     # CAMINHO BASE
     # =========================
-    BASE_PATH = r"C:\Users\Corandini\Documents\dash-hiper"
+    BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
     pastas = {
         "Acordos": "acordos",

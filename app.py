@@ -4,7 +4,6 @@ import os
 import plotly.express as px
 from datetime import datetime, timedelta
 import gspread
-from gspread_dataframe import set_with_dataframe
 from google.oauth2.service_account import Credentials
 
 # =========================
@@ -38,14 +37,15 @@ def registrar_log(usuario, acao="LOGIN"):
         )
         gc = gspread.authorize(creds)
         sh = gc.open("Log acessos DashHiper")
+
         try:
             ws = sh.worksheet("Página1")
         except gspread.WorksheetNotFound:
             ws = sh.add_worksheet(title="Página1", rows=1000, cols=5)
 
         data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ip = st.context.headers.get("X-Forwarded-For", "cloud")
-        user_agent = st.context.headers.get("User-Agent", "desconhecido")
+        ip = st.runtime.legacy_caching.get("X-Forwarded-For", "cloud")
+        user_agent = st.runtime.legacy_caching.get("User-Agent", "desconhecido")
 
         ws.append_row([data_hora, usuario, ip, user_agent, acao])
 
@@ -75,7 +75,6 @@ if not st.session_state["logado"]:
             st.success(f"Bem-vindo(a), {usuario}!")
         else:
             st.error("Usuário ou senha incorretos!")
-
 
 # =========================
 # DASHBOARD - APENAS SE LOGADO
@@ -110,6 +109,8 @@ if st.session_state["logado"]:
             return None
 
     def ler_pasta(caminho_pasta):
+        if not os.path.exists(caminho_pasta):
+            return pd.DataFrame()
         arquivos = os.listdir(caminho_pasta)
         dfs = []
         for arquivo in arquivos:
@@ -128,9 +129,6 @@ if st.session_state["logado"]:
             dados[nome] = ler_pasta(caminho)
         return dados
 
-    # =========================
-    # CARREGA OS DADOS
-    # =========================
     dados = carregar_dados()
 
     # =========================
@@ -142,9 +140,7 @@ if st.session_state["logado"]:
         with aba:
             df = dados[nome]
 
-            # =========================
             # PADRONIZAÇÃO DE COLUNAS
-            # =========================
             df.columns = (
                 df.columns
                 .str.strip()
@@ -178,20 +174,16 @@ if st.session_state["logado"]:
 
                 with col_f1:
                     nome_cliente = st.text_input("Nome do cliente")
-
                 with col_f2:
                     parcela = st.multiselect("Parcela", sorted(df["PARCELA"].dropna().unique()))
-
                 with col_f3:
                     plano = st.multiselect("Plano", sorted(df["PLANO"].dropna().unique()))
-
                 with col_f4:
                     if col_vencto:
                         vencto_range = st.date_input(
                             "Vencto",
                             value=(df[col_vencto].min(), df[col_vencto].max())
                         )
-
                 with col_f5:
                     if col_data_acordo:
                         data_acordo_range = st.date_input(
@@ -199,9 +191,7 @@ if st.session_state["logado"]:
                             value=(df[col_data_acordo].min(), df[col_data_acordo].max())
                         )
 
-                # =========================
-                # APLICA FILTROS
-                # =========================
+                # FILTROS
                 if nome_cliente:
                     df = df[df["NOME_DO_CLIENTE"].str.contains(nome_cliente, case=False, na=False)]
                 if parcela:
@@ -215,12 +205,9 @@ if st.session_state["logado"]:
                     df = df[(df[col_data_acordo] >= pd.to_datetime(data_acordo_range[0])) &
                             (df[col_data_acordo] <= pd.to_datetime(data_acordo_range[1]))]
 
-                # =========================
                 # CALENDÁRIO DE VENCIMENTOS
-                # =========================
                 if col_vencto:
                     st.markdown("### 📅 Calendário de vencimentos")
-
                     if "VLR_PARCELA" not in df.columns:
                         st.warning("Coluna VLR_PARCELA não encontrada!")
                     else:
@@ -230,8 +217,8 @@ if st.session_state["logado"]:
 
                         start_date = df_count[col_vencto].min()
                         end_date = df_count[col_vencto].max()
-                        start_date -= datetime.timedelta(days=start_date.weekday())
-                        end_date += datetime.timedelta(days=(6 - end_date.weekday()))
+                        start_date -= timedelta(days=start_date.weekday())
+                        end_date += timedelta(days=(6 - end_date.weekday()))
 
                         all_dates = pd.date_range(start_date, end_date)
                         count_dict = dict(zip(df_count[col_vencto], df_count["QTDE_ACORDOS"]))
@@ -249,22 +236,17 @@ if st.session_state["logado"]:
             # =========================
             if nome == "Discados":
                 st.markdown("### 📊 Frequência de status e qualificação por número")
-
                 if "NUMBER" not in df.columns or "READABLE_STATUS_TEXT" not in df.columns:
                     st.warning("As colunas NUMBER ou READABLE_STATUS_TEXT não foram encontradas.")
                 else:
                     col_f1, col_f2, col_f3 = st.columns(3)
-
                     with col_f1:
                         filter_number = st.text_input("Número")
                     with col_f2:
                         cpf_col = "MAILING_DATADATACLIENTE_-_CPF" if "MAILING_DATADATACLIENTE_-_CPF" in df.columns else None
                         filter_cpf = st.text_input("CPF") if cpf_col else None
                     with col_f3:
-                        filter_qual = st.multiselect(
-                            "Qualificação",
-                            sorted(df["QUALIFICATION"].dropna().unique())
-                        ) if "QUALIFICATION" in df.columns else None
+                        filter_qual = st.multiselect("Qualificação", sorted(df["QUALIFICATION"].dropna().unique())) if "QUALIFICATION" in df.columns else None
 
                     df_filtrado = df.copy()
                     if filter_number:
@@ -289,6 +271,7 @@ if st.session_state["logado"]:
                             return "Nao Atendida"
                         else:
                             return status
+
                     df_filtrado["STATUS_NORMALIZADO"] = df_filtrado["READABLE_STATUS_TEXT"].apply(map_status)
 
                     st.markdown("### 📈 Distribuição por status e qualificação")

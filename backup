@@ -2,10 +2,50 @@ import streamlit as st
 import pandas as pd
 import os
 import plotly.express as px
-from datetime import datetime
+import datetime
 import gspread
-from gspread_dataframe import set_with_dataframe
 from google.oauth2.service_account import Credentials
+from datetime import datetime
+import streamlit as st
+
+# =========================
+# GOOGLE SHEETS - LOG ACESSOS
+# =========================
+SHEETS_CRED_PATH = r"C:\Users\Corandini\Documents\dash-hiper\credenciais.json"
+SHEETS_NAME = "Log acessos DashHiper"
+SHEETS_WORKSHEET = "Página1"
+
+
+def registrar_log(usuario, acao="LOGIN"):
+    try:
+        scope = ["https://www.googleapis.com/auth/spreadsheets"]
+
+        creds = Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
+            scopes=scope
+        )
+
+        gc = gspread.authorize(creds)
+        sh = gc.open("Log acessos DashHiper")
+        ws = sh.worksheet("Página1")
+
+        data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        ip = st.context.headers.get("X-Forwarded-For", "cloud")
+        user_agent = st.context.headers.get("User-Agent", "desconhecido")
+
+        ws.append_row([
+            data_hora,
+            usuario,
+            ip,
+            user_agent,
+            acao
+        ])
+
+    except Exception as e:
+        st.error(f"Erro ao registrar log de acesso: {e}")
+
+
 
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
@@ -25,33 +65,6 @@ USUARIOS = {
 # =========================
 def login(usuario, senha):
     return usuario in USUARIOS and USUARIOS[usuario] == senha
-
-# =========================
-# FUNÇÃO PARA REGISTRAR LOG DE ACESSO NO GOOGLE SHEETS
-# =========================
-def registrar_log(usuario, acao="LOGIN"):
-    try:
-        # Usa credenciais do Streamlit Secrets
-        scope = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds = Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"],
-            scopes=scope
-        )
-
-        gc = gspread.authorize(creds)
-        sh = gc.open("Log acessos DashHiper")
-        ws = sh.worksheet("Página1")
-
-        data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Informações de IP e User-Agent (quando disponível no Cloud)
-        ip = st.context.headers.get("X-Forwarded-For", "cloud")
-        user_agent = st.context.headers.get("User-Agent", "desconhecido")
-
-        ws.append_row([data_hora, usuario, ip, user_agent, acao])
-
-    except Exception as e:
-        st.error(f"Erro ao registrar log de acesso: {e}")
 
 # =========================
 # SESSÃO
@@ -77,6 +90,48 @@ if not st.session_state["logado"]:
         else:
             st.error("Usuário ou senha incorretos!")
 
+
+import gspread
+from gspread_dataframe import set_with_dataframe
+from google.oauth2.service_account import Credentials
+import pandas as pd
+import datetime
+
+# =========================
+# FUNÇÃO PARA REGISTRAR LOGIN
+# =========================
+def registrar_login(usuario):
+    # Caminho para seu JSON de credenciais
+    credenciais_path = r"C:\Users\Corandini\Documents\dash-hiper\credenciais.json"
+    
+    # Escopo para Google Sheets
+    scope = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = Credentials.from_service_account_file(credenciais_path, scopes=scope)
+    
+    # Abre a planilha
+    gc = gspread.authorize(creds)
+    sh = gc.open("log_acessos")  # Nome da planilha
+    try:
+        ws = sh.worksheet("acessos")
+    except gspread.WorksheetNotFound:
+        ws = sh.add_worksheet(title="acessos", rows=1000, cols=5)
+    
+    # Novo registro
+    novo_registro = pd.DataFrame([{
+        "usuario": usuario,
+        "data_hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }])
+    
+    # Lê dados existentes
+    try:
+        df_existente = pd.DataFrame(ws.get_all_records())
+        df_atual = pd.concat([df_existente, novo_registro], ignore_index=True)
+    except Exception:
+        df_atual = novo_registro
+
+    # Atualiza a planilha
+    ws.clear()
+    set_with_dataframe(ws, df_atual)
 
 
 

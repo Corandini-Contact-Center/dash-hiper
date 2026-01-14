@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 import gspread
 from gspread_dataframe import set_with_dataframe
 from google.oauth2.service_account import Credentials
@@ -31,20 +31,19 @@ def login(usuario, senha):
 # =========================
 def registrar_log(usuario, acao="LOGIN"):
     try:
-        # Usa credenciais do Streamlit Secrets
         scope = ["https://www.googleapis.com/auth/spreadsheets"]
         creds = Credentials.from_service_account_info(
             st.secrets["gcp_service_account"],
             scopes=scope
         )
-
         gc = gspread.authorize(creds)
         sh = gc.open("Log acessos DashHiper")
-        ws = sh.worksheet("Página1")
+        try:
+            ws = sh.worksheet("Página1")
+        except gspread.WorksheetNotFound:
+            ws = sh.add_worksheet(title="Página1", rows=1000, cols=5)
 
         data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Informações de IP e User-Agent (quando disponível no Cloud)
         ip = st.context.headers.get("X-Forwarded-For", "cloud")
         user_agent = st.context.headers.get("User-Agent", "desconhecido")
 
@@ -76,8 +75,6 @@ if not st.session_state["logado"]:
             st.success(f"Bem-vindo(a), {usuario}!")
         else:
             st.error("Usuário ou senha incorretos!")
-
-
 
 
 # =========================

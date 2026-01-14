@@ -28,6 +28,9 @@ def login(usuario, senha):
 # =========================
 # FUNÇÃO PARA REGISTRAR LOG DE ACESSO NO GOOGLE SHEETS
 # =========================
+# =========================
+# FUNÇÃO PARA REGISTRAR LOG DE ACESSO NO GOOGLE SHEETS
+# =========================
 def registrar_log(usuario, acao="LOGIN"):
     try:
         scope = [
@@ -47,13 +50,16 @@ def registrar_log(usuario, acao="LOGIN"):
             ws = sh.add_worksheet(title="Página1", rows=1000, cols=5)
 
         data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ip = st.runtime.legacy_caching.get("X-Forwarded-For", "cloud")
-        user_agent = st.runtime.legacy_caching.get("User-Agent", "desconhecido")
+
+        # Não é possível capturar IP/User-Agent no Streamlit Cloud diretamente
+        ip = "cloud"  
+        user_agent = "desconhecido"
 
         ws.append_row([data_hora, usuario, ip, user_agent, acao])
 
     except Exception as e:
         st.error(f"Erro ao registrar log de acesso: {e}")
+
 
 # =========================
 # SESSÃO

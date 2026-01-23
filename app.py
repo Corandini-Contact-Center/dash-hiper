@@ -17,7 +17,8 @@ st.set_page_config(page_title="Dashboard Hiper", layout="wide")
 USUARIOS = {
     "admin": "Senha@741852",
     "ana.hiper": "Hiper@26",
-    "suzan.hiper": "Hiper#26"
+    "suzan.hiper": "Hiper#26",
+    "vilson.hiper": "Hiper@26"
 
 }
 

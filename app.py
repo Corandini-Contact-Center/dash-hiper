@@ -83,10 +83,12 @@ if not st.session_state["logado"]:
         if login(usuario, senha):
             st.session_state["logado"] = True
             st.session_state["usuario"] = usuario
-            registrar_log(usuario, "LOGIN")
+
+            if "log_registrado" not in st.session_state:
+                registrar_log(usuario, "LOGIN")
+                st.session_state["log_registrado"] = True
+
             st.success(f"Bem-vindo(a), {usuario}!")
-        else:
-            st.error("Usuário ou senha incorretos!")
 
 # =========================
 # DASHBOARD - APENAS SE LOGADO
